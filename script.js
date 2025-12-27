@@ -1,6 +1,40 @@
 // Global variables
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
+// API call helper function
+async function apiCall(endpoint, options = {}) {
+    const baseURL = window.location.origin;
+    const url = `${baseURL}${endpoint}`;
+
+    const defaultOptions = {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        ...options
+    };
+
+    // Add authorization header if user is logged in
+    const token = localStorage.getItem('token');
+    if (token) {
+        defaultOptions.headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+        const response = await fetch(url, defaultOptions);
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || `HTTP error! status: ${response.status}`);
+        }
+
+        return data;
+    } catch (error) {
+        console.error('API call failed:', error);
+        throw error;
+    }
+}
+
 // Check login status on page load
 document.addEventListener('DOMContentLoaded', function() {
     checkLoginStatus();
@@ -641,7 +675,7 @@ function generateEsewaCode() {
 document.addEventListener('DOMContentLoaded', function() {
   const checkoutForm = document.getElementById('checkoutForm');
   if (checkoutForm) {
-    checkoutForm.addEventListener('submit', function(e) {
+    checkoutForm.addEventListener('submit', async function(e) {
       e.preventDefault();
 
       // Get logged-in user information
@@ -691,17 +725,21 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
 
-      // Build per-item order entries for admin visibility
-      let adminOrders = JSON.parse(localStorage.getItem('gameCart') || '[]');
-      const nowIso = new Date().toISOString();
+      // Build per-item order entries for server
+      const userId = localStorage.getItem('userId');
 
-      activeCartItems.forEach(item => {
+      if (!userId) {
+        alert('User not authenticated. Please login again.');
+        window.location.href = 'login.html';
+        return;
+      }
+
+      const ordersData = activeCartItems.map(item => {
         const price = item.price || item.value || item.total || 0;
         const qty = item.quantity || item.qty || 1;
         const packLabel = item.packLabel || item.packageLabel || item.packLabel || item.pack || '';
 
-        const entry = {
-          id: 'ORD-' + Date.now() + '-' + (item.id || Math.floor(Math.random() * 10000)),
+        return {
           gameTitle: item.gameTitle || item.game || item.title || 'N/A',
           packLabel: packLabel,
           uid: item.uid || item.accountUID || '',
@@ -709,19 +747,21 @@ document.addEventListener('DOMContentLoaded', function() {
           quantity: qty,
           price: price,
           total: (price * qty) || item.total || 0,
-          customer: { name, email, phone },
-          username: localStorage.getItem('loggedInUser') || name,
-          paymentMethod: paymentMethod,
           esewaCode: esewaCode,
-          timestamp: nowIso,
           status: 'Pending'
         };
-
-        adminOrders.push(entry);
       });
 
-      // Save orders to admin-readable key
-      localStorage.setItem('gameCart', JSON.stringify(adminOrders));
+      try {
+        // Save orders to server
+        await apiCall('/orders', {
+          method: 'POST',
+          body: JSON.stringify({ user_id: userId, orders: ordersData })
+        });
+      } catch (error) {
+        alert('Failed to save order: ' + error.message);
+        return;
+      }
 
       showNotification('Order placed successfully! eSewa code: ' + esewaCode);
 
