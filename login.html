@@ -160,113 +160,102 @@ function showTab(tab) {
 }
 
 // LOGIN FORM
-document.getElementById('loginForm').addEventListener('submit', function(e) {
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-    
+
     var username = document.getElementById('loginUsername').value.trim();
     var password = document.getElementById('loginPassword').value;
     var errorMsg = document.getElementById('errorMsg');
     var successMsg = document.getElementById('successMsg');
-    
+
     errorMsg.classList.remove('show');
     successMsg.classList.remove('show');
-    
+
     if (!username || !password) {
         errorMsg.textContent = 'Please enter username and password';
         errorMsg.classList.add('show');
         return;
     }
-    
-    var user = findUser(username);
-    
-    if (!user || user.password !== password) {
-        errorMsg.textContent = 'Invalid username or password';
-        errorMsg.classList.add('show');
-        return;
-    }
-    
-    // Login successful
-    localStorage.setItem('loggedInUser', user.username);
-    if (user.isAdmin) {
-        localStorage.setItem('isAdmin', '1');
-    } else {
-        localStorage.removeItem('isAdmin');
-    }
-    
-    successMsg.textContent = 'Login successful! Redirecting...';
-    successMsg.classList.add('show');
-    
-    setTimeout(function() {
-        if (user.isAdmin) {
-            window.location.href = 'admin.html';
+
+    try {
+        const data = await apiCall('/login', {
+            method: 'POST',
+            body: JSON.stringify({ identifier: username, password: password })
+        });
+
+        // Login successful
+        localStorage.setItem('loggedInUser', data.user.username);
+        localStorage.setItem('userId', data.user.id);
+        if (data.user.is_admin) {
+            localStorage.setItem('isAdmin', '1');
         } else {
-            window.location.href = 'hlo.html';
+            localStorage.removeItem('isAdmin');
         }
-    }, 1000);
+
+        successMsg.textContent = 'Login successful! Redirecting...';
+        successMsg.classList.add('show');
+
+        setTimeout(function() {
+            if (data.user.is_admin) {
+                window.location.href = 'admin.html';
+            } else {
+                window.location.href = 'hlo.html';
+            }
+        }, 1000);
+    } catch (error) {
+        errorMsg.textContent = error.message;
+        errorMsg.classList.add('show');
+    }
 });
 
 // SIGNUP FORM
-document.getElementById('signupForm').addEventListener('submit', function(e) {
+document.getElementById('signupForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-    
+
     var username = document.getElementById('signupUsername').value.trim();
     var email = document.getElementById('signupEmail').value.trim().toLowerCase();
     var password = document.getElementById('signupPassword').value;
     var confirm = document.getElementById('signupConfirm').value;
     var errorMsg = document.getElementById('errorMsg');
     var successMsg = document.getElementById('successMsg');
-    
+
     errorMsg.classList.remove('show');
     successMsg.classList.remove('show');
-    
+
     if (!username || !email || !password) {
         errorMsg.textContent = 'All fields are required';
         errorMsg.classList.add('show');
         return;
     }
-    
+
     if (password.length < 6) {
         errorMsg.textContent = 'Password must be at least 6 characters';
         errorMsg.classList.add('show');
         return;
     }
-    
+
     if (password !== confirm) {
         errorMsg.textContent = 'Passwords do not match';
         errorMsg.classList.add('show');
         return;
     }
-    
-    // Check if user exists
-    if (findUser(username)) {
-        errorMsg.textContent = 'Username already exists';
+
+    try {
+        await apiCall('/register', {
+            method: 'POST',
+            body: JSON.stringify({ username: username, email: email, password: password })
+        });
+
+        successMsg.textContent = 'Account created! You can now login.';
+        successMsg.classList.add('show');
+
+        // Clear form and switch to login
+        this.reset();
+        setTimeout(function() { showTab('login'); }, 1500);
+    } catch (error) {
+        errorMsg.textContent = error.message;
         errorMsg.classList.add('show');
-        return;
     }
-    
-    if (findUser(email)) {
-        errorMsg.textContent = 'Email already registered';
-        errorMsg.classList.add('show');
-        return;
-    }
-    
-    // Save new user
-    var stored = getStoredUsers();
-    stored.push({
-        username: username,
-        email: email,
-        password: password,
-        isAdmin: false,
-        createdAt: new Date().toISOString()
-    });
-    localStorage.setItem('siteUsers', JSON.stringify(stored));
-    
-    successMsg.textContent = 'Account created! You can now login.';
-    successMsg.classList.add('show');
-    
-    // Clear form and switch to login
-    this.reset();
-    setTimeout(function() { showTab('login'); }, 1500);
 });
 </script>
 
