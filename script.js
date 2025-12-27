@@ -3,7 +3,7 @@ let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
 // API call helper function
 async function apiCall(endpoint, options = {}) {
-    const baseURL = window.location.origin;
+    const baseURL = 'http://127.0.0.1:5000';
     const url = `${baseURL}${endpoint}`;
 
     const defaultOptions = {
@@ -754,7 +754,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       try {
         // Save orders to server
-        await apiCall('/orders', {
+        await apiCall('/api/orders', {
           method: 'POST',
           body: JSON.stringify({ user_id: userId, orders: ordersData })
         });
