@@ -156,10 +156,45 @@
     </div>
 
     <script>
+        // API call helper function
+        async function apiCall(endpoint, options = {}) {
+            const baseURL = window.location.origin;
+            const url = `${baseURL}${endpoint}`;
+
+            const defaultOptions = {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                ...options
+            };
+
+            // Add authorization header if user is logged in
+            const token = localStorage.getItem('token');
+            if (token) {
+                defaultOptions.headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            try {
+                const response = await fetch(url, defaultOptions);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                }
+
+                return data;
+            } catch (error) {
+                console.error('API call failed:', error);
+                throw error;
+            }
+        }
+
         // Check if user is logged in
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             const loggedInUser = localStorage.getItem('loggedInUser');
-            
+            const userId = localStorage.getItem('userId');
+
             if (!loggedInUser) {
                 window.location.href = 'login.html';
                 return;
@@ -169,12 +204,18 @@
             document.getElementById('username').textContent = loggedInUser;
 
             // Load and display user's orders
-            displayUserOrders(loggedInUser);
+            if (userId) {
+                await displayUserOrders(userId);
+            } else {
+                // Fallback to localStorage if no userId
+                displayUserOrdersFromLocal(loggedInUser);
+            }
 
             // Setup logout
             document.getElementById('logoutBtn').addEventListener('click', function() {
                 localStorage.removeItem('loggedInUser');
                 localStorage.removeItem('isAdmin');
+                localStorage.removeItem('userId');
                 window.location.href = 'login.html';
             });
         });
