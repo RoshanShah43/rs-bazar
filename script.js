@@ -3,7 +3,7 @@ let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
 // API call helper function
 async function apiCall(endpoint, options = {}) {
-    const baseURL = 'http://127.0.0.1:5000';
+    const baseURL = 'http://192.168.1.73:5000';
     const url = `${baseURL}${endpoint}`;
 
     const defaultOptions = {
